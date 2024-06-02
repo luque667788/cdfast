@@ -1,3 +1,5 @@
+#!/usr/bin/env run-cargo-script
+
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::io::Write;
@@ -59,15 +61,18 @@ fn write_to_line_bg_noclear(
     }
 }
 
-fn printfiles(stdout: &mut RawTerminal<io::Stdout>,startline: u16) -> Result<(Vec<OsString>, u16), &'static str> {
+fn printfiles(
+    stdout: &mut RawTerminal<io::Stdout>,
+    startline: u16,
+) -> Result<(Vec<OsString>, u16), &'static str> {
     write!(stdout, "{}", Goto(1, 1)).unwrap();
     //print the current directory in the first line
     let current_dir = std::env::current_dir().unwrap();
     let current_dir = current_dir.to_str().unwrap();
     write!(stdout, "{}", current_dir).unwrap();
     write!(stdout, "{}", clear::AfterCursor).unwrap(); // Clear the screen // Clear the screen
-                                               // set cursor to (1,1)
-    
+                                                       // set cursor to (1,1)
+
     // print all the files in the current directory
     let mut y = 1;
     let paths = std::fs::read_dir(".").unwrap();
@@ -77,18 +82,23 @@ fn printfiles(stdout: &mut RawTerminal<io::Stdout>,startline: u16) -> Result<(Ve
     let paths2 = paths2.collect::<Vec<OsString>>();
 
     for path in paths {
-        writeln!(stdout, "{}{:?}", Goto(1, y+startline), path.unwrap().path()).unwrap();
+        writeln!(
+            stdout,
+            "{}{:?}",
+            Goto(1, y + startline),
+            path.unwrap().path()
+        )
+        .unwrap();
         stdout.flush().unwrap();
         y += 1;
     }
-    let num = y-1;
+    let num = y - 1;
     return Ok((paths2, num as u16));
 }
 
 fn main() {
-    
-    
-    let startline:u16 = 2;
+    let mut emptydir = false;
+    let startline: u16 = 2;
     let stdin = io::stdin();
     let mut stdout: RawTerminal<io::Stdout> = io::stdout().into_raw_mode().unwrap();
     //cursor to (1,1)
@@ -101,7 +111,17 @@ fn main() {
     write!(stdout, "{}", current_dir).unwrap();
     write!(stdout, "{}", clear::AfterCursor).unwrap(); // Clear the screen
 
-    let (mut paths2, mut num) = printfiles(&mut stdout,startline).unwrap();
+    let (mut paths2, mut num) = printfiles(&mut stdout, startline).unwrap();
+    // change the emptydir variable to true if there are no files in the directory
+    if paths2.len() == 0 {
+        emptydir = true;
+        write!(stdout, "{}", Goto(1, startline)).unwrap();
+        write!(stdout, "{}", clear::AfterCursor).unwrap(); // Clear the screen
+        writeln!(stdout, "No files in this directory").unwrap();
+        paths2 = vec![OsString::from("No files in this directory")];
+        num = 1;
+        write!(stdout, "{}", Goto(1, 1)).unwrap();
+    }
     let mut selected_line = 1;
     write_to_line_bg(
         &mut stdout,
@@ -122,9 +142,7 @@ fn main() {
                 if selected_line > 1 {
                     selected_line -= 1;
                 } else {
-                    
                     selected_line = num;
-
                 }
                 write_to_line_bg(
                     &mut stdout,
@@ -132,6 +150,32 @@ fn main() {
                     (1, selected_line + startline),
                 )
                 .unwrap();
+            }
+            Key::Char('\n') => {
+                if emptydir {
+                    continue;
+                }
+                let current_dir: String =
+                    String::from(std::env::current_dir().unwrap().to_str().unwrap());
+                //clear the whole screen
+                write!(stdout, "{}", Goto(1, 1)).unwrap();
+                write!(stdout, "{}", clear::All).unwrap(); // Clear the screen
+                                                           //print the current directory in the first line
+
+                // save the carvable current dir in a .txt file named selected_directory.txt
+                let mut file = std::fs::File::create(
+                    "/home/luque/prog/rust/cdtree/target/debug/selected_directory.txt",
+                ).unwrap();
+
+                write!(file, "{}", current_dir).unwrap();
+
+                // close the file
+                drop(file);
+                //print the current directory in the first line
+
+                
+
+                
             }
             Key::Down => {
                 write_to_line(
@@ -148,7 +192,7 @@ fn main() {
                 write_to_line_bg(
                     &mut stdout,
                     &paths2[(selected_line - 1) as usize],
-                    (1, selected_line+startline),
+                    (1, selected_line + startline),
                 )
                 .unwrap();
             }
@@ -161,29 +205,34 @@ fn main() {
                 // move to the selected directory
                 match std::env::set_current_dir(path) {
                     Ok(_) => {
-                        (paths2, num) = printfiles(&mut stdout,startline).unwrap();
+                        (paths2, num) = printfiles(&mut stdout, startline).unwrap();
                         selected_line = 1;
                         if paths2.len() == 0 {
+                            emptydir = true;
                             write!(stdout, "{}", Goto(1, startline)).unwrap();
                             write!(stdout, "{}", clear::AfterCursor).unwrap(); // Clear the screen
                             writeln!(stdout, "No files in this directory").unwrap();
                             paths2 = vec![OsString::from("No files in this directory")];
                             num = 1;
                             write!(stdout, "{}", Goto(1, 1)).unwrap();
-                            
                         } else {
-
+                            emptydir = false;
                             write_to_line_bg(
                                 &mut stdout,
                                 &paths2[(selected_line - 1) as usize],
-                                (1, selected_line+startline),
+                                (1, selected_line + startline),
                             )
                             .unwrap();
                         }
                     }
                     Err(_) => {
                         let error_message = OsStr::new(" Error: Could not find directory");
-                        write_to_line_bg_noclear(&mut stdout, error_message, (20, selected_line+startline)).unwrap();
+                        write_to_line_bg_noclear(
+                            &mut stdout,
+                            error_message,
+                            (20, selected_line + startline),
+                        )
+                        .unwrap();
                     }
                 }
             }
@@ -196,7 +245,7 @@ fn main() {
                 let parent_dir = current_dir.parent().unwrap().to_owned();
                 match std::env::set_current_dir(parent_dir) {
                     Ok(_) => {
-                        (paths2, num) = printfiles(&mut stdout,startline).unwrap();
+                        (paths2, num) = printfiles(&mut stdout, startline).unwrap();
                         selected_line = 1;
                         if paths2.len() == 0 {
                             write!(stdout, "{}", Goto(1, 1)).unwrap();
@@ -209,14 +258,19 @@ fn main() {
                             write_to_line_bg(
                                 &mut stdout,
                                 &paths2[(selected_line - 1) as usize],
-                                (1, selected_line+startline),
+                                (1, selected_line + startline),
                             )
                             .unwrap();
                         }
                     }
                     Err(_) => {
                         let error_message = OsStr::new(" Error: Could not find directory");
-                        write_to_line_bg_noclear(&mut stdout, error_message, (20, selected_line + startline)).unwrap();
+                        write_to_line_bg_noclear(
+                            &mut stdout,
+                            error_message,
+                            (20, selected_line + startline),
+                        )
+                        .unwrap();
                     }
                 }
             }
@@ -224,6 +278,6 @@ fn main() {
         }
         stdout.flush().unwrap();
     }
-    write!(stdout, "{}", Goto(1, 1)).unwrap();
-    write!(stdout, "{}", clear::All).unwrap(); // Clear the screen
+    //write!(stdout, "{}", Goto(1, 1)).unwrap();
+    //write!(stdout, "{}", clear::All).unwrap(); // Clear the screen
 }
