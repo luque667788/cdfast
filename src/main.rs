@@ -4,7 +4,7 @@ use std::fs::DirEntry;
 use std::io;
 use std::io::Write;
 use termion::clear;
-use termion::cursor::{Goto};
+use termion::cursor::Goto;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
