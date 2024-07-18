@@ -1,11 +1,10 @@
 #!/usr/bin/env run-cargo-script
 
-use std::ffi::{OsStr, OsString};
 use std::fs::DirEntry;
 use std::io;
 use std::io::Write;
 use termion::clear;
-use termion::cursor::{DetectCursorPos, Goto};
+use termion::cursor::{Goto};
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
