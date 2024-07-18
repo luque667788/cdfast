@@ -8,7 +8,7 @@ To navigate through the directories, use the up and down arrow keys. To move up 
 
 ## Design Philosophy
 
-This project was designed primarily for learning purposes. As such, we chose to use more "low-level" libraries instead of abstract terminal-GUI libraries. This repo could serve as a project example for someone new to rust looking for simple project ideas.
+This project was designed primarily for learning purposes. As such, I chose to use more "low-level" libraries instead of abstract terminal-GUI libraries. This repo could serve as a project example for someone new to rust looking for simple project ideas.
 
 ## Code
 
