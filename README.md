@@ -6,7 +6,7 @@ This project is a basic terminal file explorer for Linux, designed for quick and
 Make sure you are using a linux 64-bit machine using .bashrc shell
 
 Download the folder in this repo named "install".
-Run the setup.sh script as written in the readme.md of the "install" folder
+Run the setup.sh script as written in the readme.md of the "install" folder.
 This installation script should already set up everything need.
 
 ## Usage
