@@ -9,6 +9,7 @@ use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 use termion::raw::RawTerminal;
+use dirs;
 
 fn write_to_line(
     stdout: &mut RawTerminal<io::Stdout>,
@@ -107,6 +108,9 @@ fn printfiles(
 }
 
 fn main() {
+    let home_dir = dirs::home_dir().expect("Could not find home directory").to_string_lossy().into_owned();
+    let relative_path = String::from("cdfast/selected_directory.txt");
+    let filepath = format!("{}/{}", home_dir, relative_path);    
     let mut emptydir = false;
     let startline: u16 = 2;
     let stdin = io::stdin();
@@ -120,7 +124,7 @@ fn main() {
     let current_dir = current_dir.to_str().unwrap();
 
     let mut file = std::fs::File::create(
-        "/home/luque/prog/rust/cdtree/target/debug/selected_directory.txt",
+        &filepath,
     ).unwrap();
 
     write!(file, "{}", current_dir).unwrap();
@@ -185,7 +189,7 @@ fn main() {
 
                 // save the carvable current dir in a .txt file named selected_directory.txt
                 let mut file = std::fs::File::create(
-                    "/home/luque/prog/rust/cdtree/target/debug/selected_directory.txt",
+                    &filepath,
                 ).unwrap();
 
                 write!(file, "{}", current_dir).unwrap();
