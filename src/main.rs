@@ -151,6 +151,7 @@ fn main() {
                 )
                 .unwrap();
             }
+            // enter
             Key::Char('\n') => {
                 if emptydir {
                     continue;
@@ -172,8 +173,8 @@ fn main() {
                 // close the file
                 drop(file);
                 //print the current directory in the first line
-
-                
+                write!(stdout, "{}", clear::All).unwrap(); // Clear the screen
+                break;
 
                 
             }
