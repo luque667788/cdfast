@@ -1,6 +1,7 @@
 #!/usr/bin/env run-cargo-script
 
 use std::ffi::{OsStr, OsString};
+use std::fs::DirEntry;
 use std::io;
 use std::io::Write;
 use termion::clear;
@@ -12,7 +13,7 @@ use termion::raw::RawTerminal;
 
 fn write_to_line(
     stdout: &mut RawTerminal<io::Stdout>,
-    text: &OsStr,
+    text: &String,
     point: (u16, u16),
 ) -> Result<(), &'static str> {
     if point.0 < 1 || point.1 < 1 {
@@ -20,7 +21,7 @@ fn write_to_line(
     } else {
         write!(stdout, "{}", Goto(point.0, point.1)).unwrap(); // Reset the cursor to the top left corner
         write!(stdout, "{}", clear::CurrentLine).unwrap(); // Clear the line
-        write!(stdout, "{:?}", text).unwrap(); // Write the text
+        write!(stdout, "{}", text).unwrap(); // Write the text
                                                //stdout.flush().unwrap(); // maybe change this later
         Ok(())
     }
@@ -28,7 +29,7 @@ fn write_to_line(
 
 fn write_to_line_bg(
     stdout: &mut RawTerminal<io::Stdout>,
-    text: &OsStr,
+    text: &String,
     point: (u16, u16),
 ) -> Result<(), &'static str> {
     if point.0 < 1 || point.1 < 1 {
@@ -37,7 +38,7 @@ fn write_to_line_bg(
         write!(stdout, "{}", Goto(point.0, point.1)).unwrap(); // Reset the cursor to the top left corner
         write!(stdout, "{}", clear::CurrentLine).unwrap(); // Clear the line
         write!(stdout, "{}", termion::color::Bg(termion::color::White)).unwrap();
-        write!(stdout, "{:?}", text).unwrap(); // Write the text
+        write!(stdout, "{}", text).unwrap(); // Write the text
         write!(stdout, "{}", termion::color::Bg(termion::color::Reset)).unwrap();
         //stdout.flush().unwrap(); // maybe change this later
         Ok(())
@@ -46,7 +47,7 @@ fn write_to_line_bg(
 
 fn write_to_line_bg_noclear(
     stdout: &mut RawTerminal<io::Stdout>,
-    text: &OsStr,
+    text: &String,
     point: (u16, u16),
 ) -> Result<(), &'static str> {
     if point.0 < 1 || point.1 < 1 {
@@ -54,17 +55,26 @@ fn write_to_line_bg_noclear(
     } else {
         write!(stdout, "{}", Goto(point.0, point.1)).unwrap(); // Reset the cursor to the top left corner
         write!(stdout, "{}", termion::color::Bg(termion::color::White)).unwrap();
-        write!(stdout, "{:?}", text).unwrap(); // Write the text
+        write!(stdout, "{}", text).unwrap(); // Write the text
         write!(stdout, "{}", termion::color::Bg(termion::color::Reset)).unwrap();
         //stdout.flush().unwrap(); // maybe change this later
         Ok(())
     }
 }
-
+fn trimfilename(path: DirEntry) -> String {
+    let path_str = path.path().to_string_lossy().into_owned();
+    if path_str.len() > 2 {
+        // Skip the first two characters
+        path_str[2..].to_string()
+    } else {
+        // Return the original string if it's too short
+        path_str
+    }
+}
 fn printfiles(
     stdout: &mut RawTerminal<io::Stdout>,
     startline: u16,
-) -> Result<(Vec<OsString>, u16), &'static str> {
+) -> Result<(Vec<String>, u16), &'static str> {
     write!(stdout, "{}", Goto(1, 1)).unwrap();
     //print the current directory in the first line
     let current_dir = std::env::current_dir().unwrap();
@@ -77,16 +87,17 @@ fn printfiles(
     let mut y = 1;
     let paths = std::fs::read_dir(".").unwrap();
     let paths2 = std::fs::read_dir(".").unwrap();
-    let paths2 = paths2.map(|f| f.unwrap().path().as_mut_os_string().to_owned());
+    let paths2 = paths2.map(|f|trimfilename(f.unwrap()));
     // collect all the paths in an vector
-    let paths2 = paths2.collect::<Vec<OsString>>();
+    let paths2 = paths2.collect::<Vec<String>>();
 
     for path in paths {
+        let trimmed_path_str = trimfilename(path.unwrap());
         writeln!(
             stdout,
-            "{}{:?}",
+            "{}{}",
             Goto(1, y + startline),
-            path.unwrap().path()
+            trimmed_path_str
         )
         .unwrap();
         stdout.flush().unwrap();
@@ -108,6 +119,16 @@ fn main() {
     //print the current directory in the first line
     let current_dir = std::env::current_dir().unwrap();
     let current_dir = current_dir.to_str().unwrap();
+
+    let mut file = std::fs::File::create(
+        "/home/luque/prog/rust/cdtree/target/debug/selected_directory.txt",
+    ).unwrap();
+
+    write!(file, "{}", current_dir).unwrap();
+
+    // close the file
+    drop(file);
+    
     write!(stdout, "{}", current_dir).unwrap();
     write!(stdout, "{}", clear::AfterCursor).unwrap(); // Clear the screen
 
@@ -118,7 +139,7 @@ fn main() {
         write!(stdout, "{}", Goto(1, startline)).unwrap();
         write!(stdout, "{}", clear::AfterCursor).unwrap(); // Clear the screen
         writeln!(stdout, "No files in this directory").unwrap();
-        paths2 = vec![OsString::from("No files in this directory")];
+        paths2 = vec![String::from("No files in this directory")];
         num = 1;
         write!(stdout, "{}", Goto(1, 1)).unwrap();
     }
@@ -199,6 +220,8 @@ fn main() {
             }
             Key::Char('q') => {
                 write!(stdout, "{}", clear::All).unwrap(); // Clear the screen
+                // set cursor to (1,1)
+                write!(stdout, "{}", Goto(1, 1)).unwrap();
                 break;
             }
             Key::Right => {
@@ -213,7 +236,7 @@ fn main() {
                             write!(stdout, "{}", Goto(1, startline)).unwrap();
                             write!(stdout, "{}", clear::AfterCursor).unwrap(); // Clear the screen
                             writeln!(stdout, "No files in this directory").unwrap();
-                            paths2 = vec![OsString::from("No files in this directory")];
+                            paths2 = vec![String::from("No files in this directory")];
                             num = 1;
                             write!(stdout, "{}", Goto(1, 1)).unwrap();
                         } else {
@@ -227,10 +250,10 @@ fn main() {
                         }
                     }
                     Err(_) => {
-                        let error_message = OsStr::new(" Error: Could not find directory");
+                        let error_message = String::from(" Error: Could not find directory");
                         write_to_line_bg_noclear(
                             &mut stdout,
-                            error_message,
+                            &error_message,
                             (20, selected_line + startline),
                         )
                         .unwrap();
@@ -252,7 +275,7 @@ fn main() {
                             write!(stdout, "{}", Goto(1, 1)).unwrap();
                             write!(stdout, "{}", clear::All).unwrap(); // Clear the screen
                             writeln!(stdout, "No files in this directory").unwrap();
-                            paths2 = vec![OsString::from("No files in this directory")];
+                            paths2 = vec![String::from("No files in this directory")];
                             num = 1;
                             write!(stdout, "{}", Goto(1, 1)).unwrap();
                         } else {
@@ -265,10 +288,10 @@ fn main() {
                         }
                     }
                     Err(_) => {
-                        let error_message = OsStr::new(" Error: Could not find directory");
+                        let error_message = String::from(" Error: Could not find directory");
                         write_to_line_bg_noclear(
                             &mut stdout,
-                            error_message,
+                            &error_message,
                             (20, selected_line + startline),
                         )
                         .unwrap();
